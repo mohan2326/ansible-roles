@@ -1,0 +1,73 @@
+- name: Install MySQL Server
+  ansible.builtin.dnf:
+    name: mysql-server
+    state: latest
+
+- name: Start and Enable MySQL server
+  ansible.builtin.service:
+    name: mysqld
+    state: started
+    enabled: yes #lookinto out output-1 why we are adding the dependencies 
+
+- name: install python mysql dependencies
+  ansible.builtin.pip:
+    name:
+    - PyMySQL
+    - cryptography #this used for password in commandline
+    executable: pip3.9 # pip3.11 if python version is 3.11 ; in ansible version we are using python version vast 3.9.18
+    # [ ec2-user@ip-172-31-29-113 ~/my-website-using-ansible ]$ ansible --version
+    #   ansible [core 2.14.14]
+    #     config file = /etc/ansible/ansible.cfg
+    #     configured module search path = ['/home/ec2-user/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']
+    #     ansible python module location = /usr/lib/python3.9/site-packages/ansible
+    #     ansible collection location = /home/ec2-user/.ansible/collections:/usr/share/ansible/collections
+    #     executable location = /usr/bin/ansible
+    #     python version = 3.9.18 (main, Jan  4 2024, 00:00:00) [GCC 11.4.1 20230605 (Red Hat 11.4.1-2)] (/usr/bin/python3)
+    #     jinja version = 3.1.2
+    #     libyaml = True
+
+# check password is already setup or not
+- name: check DB connection
+  community.mysql.mysql_info:
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+    login_host: "{{ login_host }}"
+    filter: version # this is used for checking the version
+  ignore_errors: yes
+  register: mysql_connection_output #register is used to get the output of the command we are using
+
+- name: print output
+  ansible.builtin.debug:
+    msg: "Output: {{mysql_connection_output}} " 
+    # check output-2 why we have written the stepup root password
+
+- name: setup root password
+  ansible.builtin.command: "mysql_secure_installation --set-root-pass {{ mysql_root_password }}"
+  when: mysql_connection_output.failed is true # don't give {{ }} in when condition 
+  #by using the when condition from the output - msg: "Output: {{mysql_connection_output}} " we are saying when its true run this command; if it fails
+  #this command will not run
+  #check output-3 for the successful setting up root password
+  #check output-4 for the ignoring the root password running the same command again.
+
+# validating the sql port is # check output: 5
+- name: Checking the SQL port
+  ansible.builtin.command: "netstat -lntp | grep 3306"
+  register: netstat_output
+
+- name: Print netstat output
+  ansible.builtin.debug:
+    msg: "Output: {{ netstat_output.stdout_lines }}"
+
+#validating the MySQL login and show databases
+- name: MySQL login and show databases
+  community.mysql.mysql_query:
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+    login_host: "{{ login_host }}"
+    query: 'SHOW DATABASES;'
+  register: mysql_showdatabases_output
+  ignore_errors: yes
+
+- name: Print Showdatabase output
+  ansible.builtin.debug:
+    msg: "Output: {{ mysql_showdatabases_output }}"
