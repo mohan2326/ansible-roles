@@ -1,0 +1,66 @@
+- name: install nginx server
+  ansible.builtin.dnf:
+    name: nginx
+    state: latest
+
+- name: start and enable nginx
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: yes
+
+#https://docs.ansible.com/ansible/latest/collections/ansible/builtin/file_module.html
+- name: delete default website
+  ansible.builtin.file:
+    path: /usr/share/nginx/html
+    state: absent
+
+- name: create html directory
+  ansible.builtin.file:
+    path: /usr/share/nginx/html
+    state: directory
+
+- name: download and extract frontend code
+  ansible.builtin.unarchive:
+    src: https://expense-builds.s3.us-east-1.amazonaws.com/expense-frontend-v2.zip
+    dest: /usr/share/nginx/html
+    remote_src: yes
+
+# if there is change in configuration only, then you need to restart nginx
+- name: copy backend conf
+  ansible.builtin.template:
+    src: expense.conf.j2
+    dest: /etc/nginx/default.d/expense.conf
+  notify: 
+  - restart nginx
+
+# - name: restart nginx
+#   ansible.builtin.service:
+#     name: nginx
+#     state: restarted
+
+# validating the sql port is # check output
+- name: Checking the ports 
+  ansible.builtin.command: "netstat -lntp"
+  register: netstat_output
+
+- name: Print netstat output
+  ansible.builtin.debug:
+    msg: "Output: {{ netstat_output.stdout_lines }}"
+
+- name: ping the db server from backend
+  ansible.builtin.command: "ping -c 3 backend.mohansaivenna.cloud"
+  register: ping_command
+
+- name: print ping output
+  ansible.builtin.debug:
+    msg: "Output: {{ ping_command }}"
+
+- name: telnet
+  ansible.builtin.command: "telnet backend.mohansaivenna.cloud 8080"
+  register: telnet_command
+  ignore_errors: yes
+
+- name: print telnet output
+  ansible.builtin.debug:
+    msg: "Output: {{ telnet_command }}"
