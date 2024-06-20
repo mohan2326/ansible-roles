@@ -1,0 +1,129 @@
+- name: disable default nodejs
+  ansible.builtin.command: dnf module disable nodejs -y
+
+- name: enable nodejs:20
+  ansible.builtin.command: dnf module enable nodejs:20 -y
+
+- name: install nodejs and mysql
+  ansible.builtin.dnf: # only works for Redhat family
+    name: "{{ item }}"
+    state: installed
+  loop:
+  - nodejs
+  - mysql-server
+
+- name: Start and Enable MySQL server
+  ansible.builtin.service:
+    name: mysqld
+    state: started
+    enabled: yes
+
+- name: create expense user
+  ansible.builtin.user:
+    name: expense
+
+- name: create app directory
+  ansible.builtin.file:
+    path: /app
+    state: directory
+
+- name: download backend code
+  ansible.builtin.get_url:
+    url: https://expense-builds.s3.us-east-1.amazonaws.com/expense-backend-v2.zip
+    dest: /tmp/backend.zip
+
+- name: unzip backend code
+  ansible.builtin.unarchive:
+    src: /tmp/backend.zip # by default checks in ansible server
+    dest: /app
+    remote_src: yes
+
+- name: install npm dependencies
+  ansible.builtin.command: npm install
+  args: #https://docs.ansible.com/ansible/latest/collections/ansible/builtin/command_module.html
+    chdir: /app #by using arg we are saying ansible to run at that place 
+
+- name: copy backend service
+  ansible.builtin.template: ##https://docs.ansible.com/ansible/latest/collections/ansible/builtin/copy_module.html
+    src: backend.service
+    dest: /etc/systemd/system/backend.service
+
+- name: backend service daemon reload
+  ansible.builtin.systemd_service:
+    name: backend
+    state: reloaded
+
+- name: start and enable backend service
+  ansible.builtin.service:
+    name: backend
+    state: started
+    enabled: yes
+
+- name: install python mysql dependencies
+  ansible.builtin.pip:
+    name:
+    - PyMySQL
+    - cryptography #this used for password in commandline
+    executable: pip3.9 # pip3.11 if python version is 3.11
+
+- name: import data into mysql
+  community.mysql.mysql_db: ##https://docs.ansible.com/ansible/latest/collections/community/mysql/mysql_db_module.html#ansible-collections-community-mysql-mysql-db-module
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+    login_host: "{{ login_host }}"
+    target: /app/schema/backend.sql
+    state: import
+    name: all
+
+- name: Restart backend service
+  ansible.builtin.service:
+    name: backend
+    state: restarted
+
+# validating the sql port is # check output
+- name: Checking the ports 
+  ansible.builtin.command: "netstat -lntp"
+  register: netstat_output
+
+- name: Print netstat output
+  ansible.builtin.debug:
+    msg: "Output: {{ netstat_output.stdout_lines }}"
+
+- name: ping the db server from backend
+  ansible.builtin.command: "ping -c 3 db.mohansaivenna.cloud"
+  register: ping_command
+
+- name: print ping output
+  ansible.builtin.debug:
+    msg: "Output: {{ ping_command }}"
+
+- name: telnet
+  ansible.builtin.command: "telnet db.mohansaivenna.cloud 3306"
+  register: telnet_command
+  ignore_errors: yes
+
+- name: print telnet output
+  ansible.builtin.debug:
+    msg: "Output: {{ telnet_command }}"
+
+- name: process id of expense
+  ansible.builtin.command: "ps -ef | grep expense"
+  register: process_id_command
+
+- name: print process id output
+  ansible.builtin.debug:
+    msg: "Output: {{ process_id_command }}"
+
+#validating the MySQL login and show databases
+- name: MySQL login and show databases
+  community.mysql.mysql_query:
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+    login_host: "{{ login_host }}"
+    query: 'SHOW DATABASES;'
+  register: mysql_showdatabases_output
+  ignore_errors: yes
+
+- name: Print Showdatabase output
+  ansible.builtin.debug:
+    msg: "Output: {{ mysql_showdatabases_output }}"
