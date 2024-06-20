@@ -112,7 +112,7 @@
     msg: "Output: {{ telnet_command }}"
 
 - name: Get process ID of expense
-  nsible.builtin.shell: "ps -ef | grep expense | grep -v grep"
+  ansible.builtin.shell: "ps -ef | grep expense | grep -v grep"
   register: process_id_command
   ignore_errors: yes
 
