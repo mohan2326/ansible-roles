@@ -111,13 +111,14 @@
   ansible.builtin.debug:
     msg: "Output: {{ telnet_command }}"
 
-- name: process id of expense
-  ansible.builtin.command: "ps -ef | grep expense | grep -v grep"
+- name: Get process ID of expense
+  nsible.builtin.shell: "ps -ef | grep expense | grep -v grep"
   register: process_id_command
+  ignore_errors: yes
 
-- name: print process id output
+- name: Print process ID output
   ansible.builtin.debug:
-    msg: "Output: {{ process_id_command.stdout_lines }}"
+    msg: "Process ID Output: {{ process_id_command.stdout_lines }}"
 
 #validating the MySQL login and show databases
 - name: MySQL login and show databases
