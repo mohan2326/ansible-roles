@@ -45,7 +45,7 @@
 
 - name: copy backend service
   ansible.builtin.template: ##https://docs.ansible.com/ansible/latest/collections/ansible/builtin/copy_module.html
-    src: backend.service
+    src: backend.service.j2
     dest: /etc/systemd/system/backend.service
 
 - name: backend service daemon reload
