@@ -2,5 +2,5 @@ login_user: root
 login_host: db.mohansaivenna.cloud
 mysql_root_password: ExpenseApp@1
 DB_HOST: db.mohansaivenna.cloud
-# app_location: /app
-# component: backend
+app_location: /app
+component: backend
